@@ -1,0 +1,24 @@
+Create a git repo with license and readme file.
+Clone it to your machine.
+Pull the updates.
+Check for node, npm (Install and update if needed).
+After updating node and npm, "npx react-native init moapp" was run to create a new react native app (containing all the necessary folders).
+Uninstall old CLI.
+Install : "npm install -g expo-cli"
+Create a new project using: "expo init moapp" (The app is called moapp)
+A "blank" template was chosen for clarity.
+It creates the following: 
+
+                          moapp/
+                           ├─ App.js
+                           ├─ package.json
+                           ├─ node_modules/
+                           └─ (Expo config files)
+Inside the "moapp" that has been created, run: "npm install react-native-text-recognition react-native-chart-kit react-native-svg" to install MVP dependicies.
+*See App.js for the skeleton of the MVP code.*
+"npm start" to run the app.
+
+Optional: Download the Expo Go from Playstore and scan the QR code shown when running "npm start" to test the app live.
+
+Add. Commit. Push. 
+
