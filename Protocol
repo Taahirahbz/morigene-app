@@ -1,0 +1,1 @@
+After updateing node and npm, "npx react-native init moapp" was run to create a new react native app (containing all the necessary folders).
