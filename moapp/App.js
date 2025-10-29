@@ -4,12 +4,11 @@ import {
   ScrollView,
   View,
   Text,
-  Button,
+  TouchableOpacity,
   TextInput,
   Image,
   Dimensions,
   StyleSheet,
-  TouchableOpacity,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import TextRecognition from 'react-native-text-recognition';
@@ -19,37 +18,14 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function App() {
   const [labValues, setLabValues] = useState([]);
-  const [image, setImage] = useState(null);
   const [hbValue, setHbValue] = useState(null);
   const [message, setMessage] = useState('');
+  const [image, setImage] = useState(null);
   const [isOnMeds, setIsOnMeds] = useState(null);
   const [medications, setMedications] = useState(['']);
   const [step, setStep] = useState(1);
 
-  const scanLabReport = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissionResult.granted) {
-      alert("Camera permission is required!");
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({ base64: false });
-    if (!result.canceled) {
-      setImage(result.uri);
-      const text = await TextRecognition.recognize(result.uri);
-
-      // Extract numeric values
-      const values = text.join(' ').match(/\d+(\.\d+)?/g)?.map(Number) || [];
-      setLabValues(values);
-
-      if (values.length > 0) {
-        const latestHB = values[values.length - 1];
-        setHbValue(latestHB);
-        evaluateHB(latestHB);
-      }
-    }
-  };
-
+  // 🧠 Function to evaluate the haemoglobin result
   const evaluateHB = (value) => {
     if (value > 19) {
       setMessage('See your doctor, your HB is high.');
@@ -60,20 +36,67 @@ export default function App() {
     }
   };
 
+  // 🩸 Scan or pick image and extract haemoglobin value
+  const scanLabReport = async (source = 'camera') => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert('Camera permission is required!');
+      return;
+    }
+
+    let result;
+    if (source === 'camera') {
+      result = await ImagePicker.launchCameraAsync({ base64: false });
+    } else {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+    }
+
+    if (!result.canceled) {
+      setImage(result.uri);
+      const textBlocks = await TextRecognition.recognize(result.uri);
+      const fullText = textBlocks.join(' ').toLowerCase();
+      console.log('🔍 OCR Text:', fullText);
+
+      // Find the haemoglobin / hemoglobin word and extract the number next to it
+      const hbRegex = /(haemoglobin|hemoglobin)\D{0,10}(\d+(\.\d+)?)/i;
+      const match = fullText.match(hbRegex);
+
+      let hbDetected = null;
+      if (match && match[2]) {
+        hbDetected = parseFloat(match[2]);
+        console.log('✅ Detected Haemoglobin:', hbDetected);
+        setHbValue(hbDetected);
+        setLabValues([hbDetected]);
+        evaluateHB(hbDetected);
+      } else {
+        alert(
+          'Could not detect haemoglobin value. Please retake or upload a clearer image.'
+        );
+      }
+    }
+  };
+
+  // 🩺 Handle medication changes
   const handleMedChange = (text, index) => {
     const newMeds = [...medications];
     newMeds[index] = text;
     setMedications(newMeds);
   };
 
+  // ➕ Add new medication field
   const addMedicationField = () => {
     if (medications.length < 5) {
       setMedications([...medications, '']);
     }
   };
 
+  // ⚠️ Check if high HB + iron supplements
   const handleFinalCheck = () => {
-    if (hbValue > 19 && medications.some(m => m.toLowerCase().includes('iron'))) {
+    if (hbValue > 19 && medications.some((m) => m.toLowerCase().includes('iron'))) {
       setMessage('Stop that and see your doctor!');
     }
   };
@@ -83,13 +106,25 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.center}>
         <Text style={styles.title}>Haemoglobin Checker</Text>
 
-        <TouchableOpacity style={styles.button} onPress={scanLabReport}>
-          <Text style={styles.buttonText}>Scan Lab Report</Text>
-        </TouchableOpacity>
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => scanLabReport('camera')}
+          >
+            <Text style={styles.buttonText}>📷 Scan with Camera</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => scanLabReport('gallery')}
+          >
+            <Text style={styles.buttonText}>🖼️ Pick from Gallery</Text>
+          </TouchableOpacity>
+        </View>
 
         {image && <Image source={{ uri: image }} style={styles.image} />}
 
-        {labValues.length > 0 && (
+        {hbValue && (
           <>
             <Text style={styles.text}>Detected HB Value: {hbValue}</Text>
             <Text style={styles.text}>{message}</Text>
@@ -188,22 +223,21 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     marginVertical: 20,
   },
   text: {
     color: '#fff',
     fontSize: 16,
-    marginVertical: 10,
+    marginVertical: 8,
     textAlign: 'center',
   },
   button: {
     backgroundColor: '#004d4d',
-    padding: 15,
+    padding: 12,
     borderRadius: 10,
-    marginVertical: 10,
-    width: '80%',
+    margin: 5,
     alignItems: 'center',
   },
   smallButton: {
@@ -224,14 +258,14 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   image: {
-    width: 200,
-    height: 200,
+    width: 220,
+    height: 220,
     marginVertical: 15,
     borderRadius: 10,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: 10,
+    flexWrap: 'wrap',
   },
 });
